@@ -1,107 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>RIFT Autonomous DevOps Agent</title>
-  <style>
-    body {
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-      padding: 40px;
-    }
+    <meta charset="UTF-8">
+    <title>🚀 RIFT Autonomous DevOps Agent</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            padding: 40px;
+        }
 
-    input {
-      width: 400px;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 6px;
-      border: none;
-    }
+        h1 {
+            margin-bottom: 30px;
+        }
 
-    button {
-      padding: 10px 20px;
-      border-radius: 6px;
-      border: none;
-      background: #3b82f6;
-      color: white;
-      cursor: pointer;
-      font-weight: bold;
-    }
+        input {
+            width: 400px;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: none;
+        }
 
-    .card {
-      margin-top: 30px;
-      padding: 20px;
-      background: #1e293b;
-      border-radius: 10px;
-    }
+        button {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
 
-    .success { color: #22c55e; }
-    .fail { color: #ef4444; }
+        button:hover {
+            background: #2563eb;
+        }
 
-    pre {
-      background: #111827;
-      padding: 15px;
-      border-radius: 8px;
-      overflow-x: auto;
-    }
-  </style>
+        .output {
+            margin-top: 30px;
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        pre {
+            background: #0f172a;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
 </head>
 <body>
 
-  <h1>🚀 RIFT Autonomous DevOps Agent</h1>
+<h1>🚀 RIFT Autonomous DevOps Agent</h1>
 
-  <input id="repo" placeholder="Repository URL" value="https://github.com/evilfuel/demo-failing-project.git"><br>
-  <input id="team" placeholder="Team Name" value="STRING"><br>
-  <input id="leader" placeholder="Leader Name" value="STRING"><br>
+<input type="text" id="repo" placeholder="Repository URL">
+<br>
+<input type="text" id="team" placeholder="Team Name">
+<br>
+<input type="text" id="leader" placeholder="Leader Name">
+<br>
+<button onclick="runAgent()">Run Agent</button>
 
-  <button onclick="runAgent()">Run Agent</button>
+<div class="output" id="output"></div>
 
-  <div id="result" class="card" style="display:none;"></div>
+<script>
+async function runAgent() {
 
-  <script>
-    async function runAgent() {
+    const repoUrl = document.getElementById("repo").value;
+    const teamName = document.getElementById("team").value;
+    const leaderName = document.getElementById("leader").value;
+    const output = document.getElementById("output");
 
-      const repo = document.getElementById("repo").value;
-      const team = document.getElementById("team").value;
-      const leader = document.getElementById("leader").value;
+    output.innerHTML = "Running agent... ⏳";
 
-      const resultDiv = document.getElementById("result");
-      resultDiv.style.display = "block";
-      resultDiv.innerHTML = "Running agent... ⏳";
-
-      try {
-        const response = await fetch("https://rift-autonomous-devops-agent.onrender.com/run-agent", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            repo_url: repo,
-            team_name: team,
-            leader_name: leader
-          })
+    try {
+        const response = await fetch("/run-agent", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                repo_url: repoUrl,
+                team_name: teamName,
+                leader_name: leaderName
+            })
         });
 
         const data = await response.json();
 
-        const statusClass = data.final_status === "PASSED" ? "success" : "fail";
-
-        resultDiv.innerHTML = `
-          <h2 class="${statusClass}">Final Status: ${data.final_status}</h2>
-          <p><strong>Branch:</strong> ${data.branch}</p>
-          <p><strong>Iterations:</strong> ${data.iterations}</p>
-          <p><strong>Total Fixes:</strong> ${data.total_fixes}</p>
-          <p><strong>Total Failures:</strong> ${data.total_failures}</p>
-
-          <h3>Failure Details</h3>
-          <pre>${JSON.stringify(data.fixes, null, 2)}</pre>
+        output.innerHTML = `
+            <h3>Final Status: ${data.final_status}</h3>
+            <p><strong>Branch:</strong> ${data.branch}</p>
+            <p><strong>Iterations:</strong> ${data.iterations}</p>
+            <p><strong>Total Fixes:</strong> ${data.total_fixes}</p>
+            <p><strong>Total Failures:</strong> ${data.total_failures}</p>
+            <p><strong>New Repo:</strong> 
+                <a href="${data.new_repo}" target="_blank" style="color:#60a5fa">
+                    ${data.new_repo}
+                </a>
+            </p>
+            <h4>Failure Details</h4>
+            <pre>${JSON.stringify(data.fixes, null, 2)}</pre>
         `;
 
-      } catch (err) {
-        resultDiv.innerHTML = "Error connecting to backend.";
-      }
+    } catch (error) {
+        console.error(error);
+        output.innerHTML = "❌ Error connecting to backend.";
     }
-  </script>
+}
+</script>
 
 </body>
 </html>
