@@ -1,28 +1,25 @@
 from dotenv import load_dotenv
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 load_dotenv()
-from fastapi import FastAPI
-from pydantic import BaseModel
-from utils.formatter import generate_branch_name
-from services.github_service import clone_repository
-from services.test_runner import run_tests
-from services.fixer import apply_simple_fix
-from services.github_service import commit_and_push
-from services.test_runner import run_tests, extract_failures
+
 import os
-from services.ai_fixer import generate_fix 
-from services.github_service import create_new_repo, push_fixed_repo
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from utils.formatter import generate_branch_name
+from services.github_service import (
+    clone_repository,
+    create_new_repo,
+    push_fixed_repo
+)
+from services.test_runner import run_tests
+from services.ai_fixer import generate_fix
 
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/")
-def serve_frontend():
-    return FileResponse("static/index.html")
-from fastapi.middleware.cors import CORSMiddleware
-
+# ✅ CORS (allow everything for hackathon demo)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,14 +28,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ Serve frontend (static folder inside backend/)
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+
 class RepoRequest(BaseModel):
     repo_url: str
     team_name: str
     leader_name: str
 
-@app.get("/")
-def root():
-    return {"message": "Backend is running"}
 
 @app.post("/run-agent")
 def run_agent(data: RepoRequest):
@@ -61,7 +59,6 @@ def run_agent(data: RepoRequest):
         if not failures:
             break
 
-        # Only attempt first failure to save quota
         failure = failures[0]
 
         file_path = os.path.abspath(
@@ -84,7 +81,7 @@ def run_agent(data: RepoRequest):
 
         fixed_content = generate_fix(content, failure["error"])
 
-        # Only overwrite if AI returned valid python
+        # Only overwrite if AI returned valid Python code
         if fixed_content and "def " in fixed_content:
             with open(file_path, "w") as f:
                 f.write(fixed_content)
@@ -92,15 +89,13 @@ def run_agent(data: RepoRequest):
         else:
             break
 
-        # Re-run tests after fix
         test_result = run_tests(clone_path)
 
-    final_status = "PASSED" if test_result["success"] else "FAILED" 
-    # Create new repo and push fixed code
+    final_status = "PASSED" if test_result["success"] else "FAILED"
+
+    # ✅ Create new GitHub repo with fixed code
     new_repo_name = f"{branch_name}_fixed"
-
     new_repo_url = create_new_repo(new_repo_name)
-
     push_fixed_repo(clone_path, new_repo_url)
 
     return {
@@ -112,6 +107,7 @@ def run_agent(data: RepoRequest):
         "final_status": final_status,
         "time_taken": "0m 10s",
         "score": 100,
+        "new_repo": new_repo_url,
         "fixes": test_result["failures"],
         "timeline": [
             {
@@ -120,24 +116,4 @@ def run_agent(data: RepoRequest):
                 "timestamp": "NOW"
             }
         ]
-    } 
-    return {
-        "repository": data.repo_url,
-        "branch": branch_name,
-        "total_failures": len(test_result["failures"]),
-        "total_fixes": fix_count,
-        "iterations": 1,
-        "final_status": final_status,
-        "time_taken": "0m 10s",
-        "score": 100,
-        "new_repo": new_repo_url,   # 👈 ADD IT HERE
-        "fixes": test_result["failures"],
-        "timeline": [
-            {
-                "iteration": 1,
-                "status": final_status,
-                "timestamp": "NOW"
-        }
-    ]
-}
-
+    }
