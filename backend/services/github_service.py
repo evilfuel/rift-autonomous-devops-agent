@@ -35,4 +35,38 @@ def commit_and_push(repo_path: str, branch_name: str):
     subprocess.run(
         ["git", "push", "origin", branch_name],
         cwd=repo_path
-    )
+    ) 
+
+import requests
+import os
+from git import Repo
+
+
+def create_new_repo(repo_name: str):
+    token = os.getenv("GITHUB_TOKEN")
+
+    url = "https://api.github.com/user/repos"
+
+    headers = {
+        "Authorization": f"token {token}"
+    }
+
+    data = {
+        "name": repo_name,
+        "private": False
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+
+    return response.json()["clone_url"] 
+
+def push_fixed_repo(local_path: str, new_repo_url: str):
+    repo = Repo(local_path)
+
+    repo.git.remote("remove", "origin")
+    repo.create_remote("origin", new_repo_url)
+
+    repo.git.add(A=True)
+    repo.index.commit("AI Fixed Code")
+
+    repo.git.push("--set-upstream", "origin", "main")

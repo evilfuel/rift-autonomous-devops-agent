@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 venv/
+backend/venv/
+backend/__pycache__/
+backend/temp_repos/
+backend/.env
 
 # Node
 node_modules/
@@ -9,4 +13,3 @@ dist/
 
 # OS
 .DS_Store
-

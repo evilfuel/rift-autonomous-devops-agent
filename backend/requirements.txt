@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+requests
+gitpython
+python-dotenv
+pytest

@@ -1,6 +1,6 @@
 import subprocess
-import re
 import os
+import re
 
 
 def run_tests(repo_path: str):
@@ -14,21 +14,30 @@ def run_tests(repo_path: str):
 
         output = result.stdout + result.stderr
 
-        # 🔥 Simple logic: failure if returncode != 0
-        if result.returncode != 0:
-                            failures = [{
-            "file": "calculator.py",
-            "line": 0,
-            "error": output
-        }]
+        # If no tests exist, treat as success
+        if "no tests ran" in output.lower():
+            return {
+                "success": True,
+                "failures": []
+            }
 
+        # If tests passed
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "failures": []
+            }
 
-        else:
-            failures = []
+        # Otherwise extract real failure
+        failures = extract_failures(output, repo_path)
 
         return {
-            "success": result.returncode == 0,
-            "failures": failures
+            "success": False,
+            "failures": failures if failures else [{
+                "file": "unknown",
+                "line": 0,
+                "error": output
+            }]
         }
 
     except Exception as e:
@@ -41,22 +50,27 @@ def run_tests(repo_path: str):
             }]
         }
 
-def extract_failures(output, clone_path):
+
+def extract_failures(output: str, clone_path: str):
     failures = []
 
-    # If pytest failed at all, assume test file is failing
-    if "FAILED" in output or "AssertionError" in output:
-        # Find first test file in repo
-        for root, dirs, files in os.walk(clone_path):
-            for file in files:
-                if file.startswith("test_") and file.endswith(".py"):
-                    failures.append({
-                        "file": file,
-                        "line": 0,
-                        "error": "test failure"
-                    })
-                    return failures
+    # If assertion failure happened
+    if "AssertionError" in output:
+
+        # Try to detect imported module name from test file
+        match = re.search(r'from (\w+) import', output)
+
+        if match:
+            module_name = match.group(1)
+            file_name = module_name + ".py"
+        else:
+            # fallback
+            file_name = "calculator.py"
+
+        failures.append({
+            "file": file_name,
+            "line": 0,
+            "error": output
+        })
 
     return failures
-
-

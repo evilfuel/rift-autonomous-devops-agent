@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RIFT Autonomous DevOps Agent</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      padding: 40px;
+    }
+
+    input {
+      width: 400px;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: none;
+    }
+
+    button {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .card {
+      margin-top: 30px;
+      padding: 20px;
+      background: #1e293b;
+      border-radius: 10px;
+    }
+
+    .success { color: #22c55e; }
+    .fail { color: #ef4444; }
+
+    pre {
+      background: #111827;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🚀 RIFT Autonomous DevOps Agent</h1>
+
+  <input id="repo" placeholder="Repository URL" value="https://github.com/evilfuel/demo-failing-project.git"><br>
+  <input id="team" placeholder="Team Name" value="STRING"><br>
+  <input id="leader" placeholder="Leader Name" value="STRING"><br>
+
+  <button onclick="runAgent()">Run Agent</button>
+
+  <div id="result" class="card" style="display:none;"></div>
+
+  <script>
+    async function runAgent() {
+
+      const repo = document.getElementById("repo").value;
+      const team = document.getElementById("team").value;
+      const leader = document.getElementById("leader").value;
+
+      const resultDiv = document.getElementById("result");
+      resultDiv.style.display = "block";
+      resultDiv.innerHTML = "Running agent... ⏳";
+
+      try {
+        const response = await fetch("http://localhost:8000/run-agent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            repo_url: repo,
+            team_name: team,
+            leader_name: leader
+          })
+        });
+
+        const data = await response.json();
+
+        const statusClass = data.final_status === "PASSED" ? "success" : "fail";
+
+        resultDiv.innerHTML = `
+          <h2 class="${statusClass}">Final Status: ${data.final_status}</h2>
+          <p><strong>Branch:</strong> ${data.branch}</p>
+          <p><strong>Iterations:</strong> ${data.iterations}</p>
+          <p><strong>Total Fixes:</strong> ${data.total_fixes}</p>
+          <p><strong>Total Failures:</strong> ${data.total_failures}</p>
+
+          <h3>Failure Details</h3>
+          <pre>${JSON.stringify(data.fixes, null, 2)}</pre>
+        `;
+
+      } catch (err) {
+        resultDiv.innerHTML = "Error connecting to backend.";
+      }
+    }
+  </script>
+
+</body>
+</html>

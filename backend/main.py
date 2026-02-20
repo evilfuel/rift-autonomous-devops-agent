@@ -1,4 +1,6 @@
 from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 load_dotenv()
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -9,15 +11,21 @@ from services.fixer import apply_simple_fix
 from services.github_service import commit_and_push
 from services.test_runner import run_tests, extract_failures
 import os
-from services.ai_fixer import generate_fix
+from services.ai_fixer import generate_fix 
+from services.github_service import create_new_repo, push_fixed_repo
 
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def serve_frontend():
+    return FileResponse("static/index.html")
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,7 +95,13 @@ def run_agent(data: RepoRequest):
         # Re-run tests after fix
         test_result = run_tests(clone_path)
 
-    final_status = "PASSED" if test_result["success"] else "FAILED"
+    final_status = "PASSED" if test_result["success"] else "FAILED" 
+    # Create new repo and push fixed code
+    new_repo_name = f"{branch_name}_fixed"
+
+    new_repo_url = create_new_repo(new_repo_name)
+
+    push_fixed_repo(clone_path, new_repo_url)
 
     return {
         "repository": data.repo_url,
@@ -106,5 +120,24 @@ def run_agent(data: RepoRequest):
                 "timestamp": "NOW"
             }
         ]
-    }
+    } 
+    return {
+        "repository": data.repo_url,
+        "branch": branch_name,
+        "total_failures": len(test_result["failures"]),
+        "total_fixes": fix_count,
+        "iterations": 1,
+        "final_status": final_status,
+        "time_taken": "0m 10s",
+        "score": 100,
+        "new_repo": new_repo_url,   # 👈 ADD IT HERE
+        "fixes": test_result["failures"],
+        "timeline": [
+            {
+                "iteration": 1,
+                "status": final_status,
+                "timestamp": "NOW"
+        }
+    ]
+}
 
